@@ -1,3 +1,43 @@
+-- Шаблон кінцевого select чутливості по відділеннях і штамах. Комбінується з генерованих вставок.
+SELECT x.*
+, CEIL(cnt_group_org*1000/cnt_ward)/10||'%' stamm_procent_for_all
+, ro.name 
+, AMC_ND20.okproc_AMC_ND20 AMC_ND20 
+FROM (
+SELECT x.*, cnt_ward FROM (
+SELECT ward, group_org, COUNT(group_org) cnt_group_org FROM (
+SELECT x.ward, group_org FROM (
+SELECT CASEWHEN(rs_org IS NULL,s.organism,rs_org) group_org, s.organism ogm, s.* FROM surgery17_1 s 
+LEFT JOIN (SELECT rs_org, ol.* FROM rs_org_org roo,ORGLIST ol, (SELECT  MIN(id) mid FROM ORGLIST ol GROUP BY org) x
+WHERE ol.org=roo.org and x.mid=ol.id) x ON x.org=s.organism 
+) x
+) GROUP BY ward, group_org
+) x, (SELECT WARD, COUNT(WARD) cnt_WARD FROM surgery17_1 GROUP BY WARD) y
+WHERE x.ward=y.ward
+) x  LEFT JOIN rs_org ro ON rs_org=group_org
+ LEFT JOIN (SELECT ward ward_AMC_ND20, group_org group_org_AMC_ND20 , CASEWHEN(all_AMC_ND20>0, CEIL(ok_AMC_ND20*1000/all_AMC_ND20)/10,0) okproc_AMC_ND20, petri /*, x.* */ FROM (SELECT ward, group_org , COUNT(group_org) petri , SUM(s_AMC_ND20) ok_AMC_ND20, SUM(a_AMC_ND20) all_AMC_ND20 /*, x.* */ FROM ( SELECT ward, CASEWHEN(x.org is null, 'ani',x.org) group_org, amc_nd20, CASEWHEN(AMC_ND20>s,1,0) s_AMC_ND20, CASEWHEN(s is null,0,1) a_AMC_ND20, organism , x.* FROM (SELECT * FROM surgery17_1 WHERE AMC_ND20 IS NOT NULL) s LEFT JOIN  (SELECT roo.org org_in_rs, r.* FROM rs r, rs_org_org roo WHERE roo.rs_org=r.org AND code='AMC_ND20') x ON organism=org_in_rs) x GROUP BY ward, group_org) x ORDER BY ward, petri DESC ) AMC_ND20 on x.ward=AMC_ND20.ward_AMC_ND20 and x.group_org=AMC_ND20.group_org_AMC_ND20 
+ LEFT JOIN (SELECT ward ward_VOR_ND1, group_org group_org_VOR_ND1 , CASEWHEN(all_VOR_ND1>0, CEIL(ok_VOR_ND1*1000/all_VOR_ND1)/10,0) okproc_VOR_ND1, petri /*, x.* */ FROM (SELECT ward, group_org , COUNT(group_org) petri , SUM(s_VOR_ND1) ok_VOR_ND1, SUM(a_VOR_ND1) all_VOR_ND1 /*, x.* */ FROM ( SELECT ward, CASEWHEN(x.org is null, 'ani',x.org) group_org, amc_nd20, CASEWHEN(VOR_ND1>s,1,0) s_VOR_ND1, CASEWHEN(s is null,0,1) a_VOR_ND1, organism , x.* FROM (SELECT * FROM surgery17_1 WHERE VOR_ND1 IS NOT NULL) s LEFT JOIN  (SELECT roo.org org_in_rs, r.* FROM rs r, rs_org_org roo WHERE roo.rs_org=r.org AND code='VOR_ND1') x ON organism=org_in_rs) x GROUP BY ward, group_org) x ORDER BY ward, petri DESC ) VOR_ND1 on x.ward=VOR_ND1.ward_VOR_ND1 and x.group_org=VOR_ND1.group_org_VOR_ND1 
+ORDER BY cnt_ward DESC, cnt_group_org DESC
+
+
+-- Генерація select чутливості по відділеннях і по штамах для кожного диска
+SELECT x.* 
+,'SELECT ward, group_org, CASEWHEN(all_'||code||'>0, CEIL(ok_'||code||'*1000/all_'||code||')/10,0) okproc_'||code||', petri /*, x.* */ '
+||'FROM ('
+||'SELECT ward, group_org , COUNT(group_org) petri , SUM(s_'||code||') ok_'||code||', SUM(a_'||code||') all_'||code||' /*, x.* */ '
+||'FROM ( '
+||x.all
+||') x GROUP BY ward, group_org) x ORDER BY ward, petri DESC ' chutlivist
+FROM (
+SELECT DISTINCT code
+,'SELECT ward, CASEWHEN(x.org is null, ''ani'',x.org) group_org, amc_nd20'
+||', CASEWHEN('||code||'>s,1,0) s_'||code||', CASEWHEN(s is null,0,1) a_'||code||', organism , x.* '
+||'FROM (SELECT * FROM surgery17_1 WHERE '||code||' IS NOT NULL) s LEFT JOIN  ('
+||'SELECT roo.org org_in_rs, r.* FROM rs r, rs_org_org roo WHERE roo.rs_org=r.org AND code='''||code||''''
+||') x ON organism=org_in_rs' all
+FROM rs WHERE used ) x
+ORDER BY code
+
 -- Чутливість по відділеннях і по штамах по діску AMC_ND20
 SELECT ward, group_org , CASEWHEN(all_AMC_ND20 >0, CEIL(ok_AMC_ND20*1000/all_AMC_ND20)/10,0) okproc_AMC_ND20 /*, x.* */
 FROM (
